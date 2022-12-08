@@ -5,7 +5,6 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Configuration;
 
-
 namespace GetVersions
 {
     internal class Program
