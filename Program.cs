@@ -27,8 +27,7 @@ namespace GetVersions
                 try
                 {
                     conn.Open();
-                    //var readQuery = $"select f.computername, f.swname, t.path from FLCSystemMember as f ,FileVersions as t where t.FileName = f.SWName and t.Host = f.ComputerName";
-
+                    
                     var cmd = new SqlCommand("sp_GetFileVersion", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
 
@@ -55,14 +54,15 @@ namespace GetVersions
 
                         if (softwareName == "MailSave_Server")
                              softwareName = "MailSave";
-                        //var insertQuery = $"update FileVersions set FileVersion=@FileVersion where FileName=@FileName and Host=@Host";
-                        //var cmd2 = new SqlCommand(insertQuery, conn);
                         var cmd2 = new SqlCommand("sp_UpdateGetFileVersion", conn);
                         cmd2.CommandType = CommandType.StoredProcedure;
 
                         cmd2.Parameters.AddWithValue("@FileVersion", fileInfo.FileVersion);
                         cmd2.Parameters.AddWithValue("@FileName", softwareName);
                         cmd2.Parameters.AddWithValue("@Host", computerName);
+                        cmd2.Parameters.AddWithValue("@Last_Update", DateTime.Now);
+                        
+
                         
                         var result = cmd2.ExecuteNonQuery();
                      
