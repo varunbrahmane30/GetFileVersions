@@ -8,7 +8,8 @@ using System.Configuration;
 namespace GetVersions
 {
     internal class Program
-    { 
+    {
+        
         public static string GetConnectionStringByName(string dbName)
         {
           string returnValue = null;
@@ -24,15 +25,16 @@ namespace GetVersions
             using (var conn = new SqlConnection())
             {
                 conn.ConnectionString = GetConnectionStringByName("FLCADDB");
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(conn.ConnectionString);
+                String databaseName = builder.InitialCatalog;
                 try
                 {
                     conn.Open();
-                    
+
                     var cmd = new SqlCommand("sp_GetFileVersion", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
 
                     var path = string.Empty;
-                    var hostName = string.Empty;
                     var computerName = string.Empty;
                     var softwareName = string.Empty;
                     var reader = cmd.ExecuteReader();
@@ -41,31 +43,22 @@ namespace GetVersions
 
                     while (reader.Read())
                     {
-                        path = reader["Path"].ToString();
+                        
                         computerName = reader["ComputerName"].ToString();
                         softwareName = reader["SWName"].ToString();
 
-                        if (softwareName == "MailSave")
-                            softwareName = "MailSave_Server";
                         
-
-                        var fileInfo = FileVersionInfo.GetVersionInfo(Path.Combine(path, softwareName + ".exe"));
-                       Console.WriteLine($"\n\t\t\t {fileInfo.ProductName} \t  Version number: {fileInfo.FileVersion}");
-
-                        if (softwareName == "MailSave_Server")
-                             softwareName = "MailSave";
-                        var cmd2 = new SqlCommand("sp_UpdateGetFileVersion", conn);
-                        cmd2.CommandType = CommandType.StoredProcedure;
-
-                        cmd2.Parameters.AddWithValue("@FileVersion", fileInfo.FileVersion);
-                        cmd2.Parameters.AddWithValue("@FileName", softwareName);
-                        cmd2.Parameters.AddWithValue("@Host", computerName);
-                        cmd2.Parameters.AddWithValue("@Last_Update", DateTime.Now);
+                        path = reader["Path"].ToString();
                         
-
-                        
-                        var result = cmd2.ExecuteNonQuery();
-                     
+                        if (path != String.Empty)
+                        {
+                            GetFileInformation(path, softwareName, computerName);
+                        }
+                        else
+                        {
+                            var cmd3 = new SqlCommand("", conn);
+                            cmd.CommandType = CommandType.StoredProcedure;
+                        }
                     }      
                 }
                 catch (Exception ex)
@@ -88,6 +81,31 @@ namespace GetVersions
                             ex = ex.InnerException;
                         }
                     }
+                }
+
+                FileVersionInfo GetFileInformation(String path,string softwareName, string computerName)
+                {
+                    if (softwareName == "MailSave")
+                        softwareName = "MailSave_Server";
+
+                    var fileInfo = FileVersionInfo.GetVersionInfo(Path.Combine(path, softwareName + ".exe"));
+                    Console.WriteLine($"\n\t\t\t {fileInfo.ProductName} \t  Version number: {fileInfo.FileVersion}");
+
+                    if (softwareName == "MailSave_Server")
+                        softwareName = "MailSave";
+
+                    var cmd2 = new SqlCommand("sp_UpdateGetFileVersion", conn);
+                    cmd2.CommandType = CommandType.StoredProcedure;
+
+                    cmd2.Parameters.AddWithValue("@FileVersion", fileInfo.FileVersion);
+                    cmd2.Parameters.AddWithValue("@FileName", softwareName);
+                    cmd2.Parameters.AddWithValue("@Host", computerName);
+                    cmd2.Parameters.AddWithValue("@Last_Update", DateTime.Now);
+                    cmd2.Parameters.AddWithValue("@Database_Name", databaseName);
+
+
+                    var result = cmd2.ExecuteNonQuery();
+                    return fileInfo;
                 }
             }
             Console.ReadKey(true);
