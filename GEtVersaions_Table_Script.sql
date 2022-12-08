@@ -1,4 +1,3 @@
-
 create table FileVersions (
 	Id int Primary key,
 	Host varchar(150),
