@@ -4,6 +4,10 @@ using System.Diagnostics;
 using System.Data;
 using System.Data.SqlClient;
 using System.Configuration;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using System.Management;
 
 namespace GetVersions
 {
@@ -12,7 +16,7 @@ namespace GetVersions
         
         public static string GetConnectionStringByName(string dbName)
         {
-          string returnValue = null;
+            string returnValue = null;
             ConnectionStringSettings settings = ConfigurationManager.ConnectionStrings[dbName];
 
             if (settings != null)
@@ -20,13 +24,23 @@ namespace GetVersions
 
             return returnValue;
         }
+
+        static string ConnectionString { get; set; }
+
         static void Main(string[] args)
         {
+
+            ConnectionString = GetConnectionStringByName("FLCADDB");
+
+            Run();
+
+            /*
             using (var conn = new SqlConnection())
             {
                 conn.ConnectionString = GetConnectionStringByName("FLCADDB");
                 SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(conn.ConnectionString);
                 String databaseName = builder.InitialCatalog;
+
                 try
                 {
                     conn.Open();
@@ -108,8 +122,164 @@ namespace GetVersions
                     return fileInfo;
                 }
             }
+            
+            */
             Console.ReadKey(true);
         }
+
+        private static void Run()
+        {
+            var computerName = Environment.MachineName;
+            //var path = GetsoftwarePath();
+
+            
+            string ServiceName = "FLCAD_MAIL_READ";
+            using (ManagementObject wmiService = new ManagementObject("Win32_Service.Name='" + ServiceName + "'"))
+            {
+                wmiService.Get();
+                string currentserviceExePath = wmiService["PathName"].ToString();
+                Console.WriteLine(wmiService["PathName"].ToString());
+
+                string authors = currentserviceExePath;
+                string stringBeforeChar = authors.Substring(0, authors.IndexOf(" "));
+                Console.WriteLine(stringBeforeChar);
+            }
+
+            var softwareNames = GetSoftwareNames(computerName);
+            UpdateFileVersions(computerName, softwareNames);
+        }
+
+        private static List<string> GetSoftwareNames(string computerName)
+        {
+            var computerNames = new List<string>();
+            using (var conn = new SqlConnection(ConnectionString))
+            {
+                try
+                {
+                    conn.Open();
+                    // Get the software name based on FLCSystemMember table.
+                    var cmd = new SqlCommand("select SWName from FLCSystemMember where ComputerName=@ComputerName and SWVersion is not null", conn)
+                    {
+                        CommandType = CommandType.Text
+                    };
+                    cmd.Parameters.AddWithValue("@ComputerName", computerName);
+                    var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        computerNames.Add(reader["SWName"].ToString());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    LogException(ex);
+                }
+            }
+
+            return new HashSet<string>(computerNames).ToList();
+        }
+
+
+        private static void UpdateFileVersions(string host, List<string> softwareNames)
+        {
+            using (var conn = new SqlConnection(ConnectionString))
+            {
+                try
+                {
+                    conn.Open();
+                    foreach (var softwareName in softwareNames)
+                    {
+                        // Get existing record from table
+                        var cmd = new SqlCommand("select * from FileVersions where Host=@Host and SoftwareName=@SoftwareName", conn)
+                        {
+                            CommandType = CommandType.Text
+                        };
+                        cmd.Parameters.AddWithValue("@Host", host);
+                        cmd.Parameters.AddWithValue("@SoftwareName", softwareName);
+
+                        var path = string.Empty;
+                        var fileVersion = string.Empty;
+                        var reader = cmd.ExecuteReader();
+
+                        while (reader.Read())
+                        {
+                            path = reader["Path"].ToString();
+                            fileVersion = reader["FileVersion"].ToString();
+                        }
+
+                        var recordExists = !string.IsNullOrWhiteSpace(path);
+                        if (recordExists)
+                        {
+                            UpdateFileVersion(host, conn, softwareName, path);
+                        }   
+                        else
+                        {
+                            InsertFileVersion(host, conn, softwareName);
+                        }
+                    }
+                   
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    LogException(ex);
+                }
+            }
+
+        }
+
+        private static void InsertFileVersion(string host, SqlConnection conn, string softwareName)
+        {
+            // insert new record in table
+            var insertCmd = new SqlCommand("insert into FileVersions(Host, SoftwareName, Last_Update) values(@Host, @SoftwareName, @Last_Update)", conn)
+            {
+                CommandType = CommandType.Text
+            };
+
+            insertCmd.Parameters.AddWithValue("@Host", host);
+            insertCmd.Parameters.AddWithValue("@SoftwareName", softwareName);
+            insertCmd.Parameters.AddWithValue("@Last_Update", DateTime.Now);
+
+            insertCmd.ExecuteNonQuery();
+            
+        }
+
+        private static void UpdateFileVersion(string host, SqlConnection conn, string softwareName, string path)
+        {
+
+            // update existing record with new file version
+            var fileInfo = FileVersionInfo.GetVersionInfo(Path.Combine(path));
+            var updateFileVersionCmd = new SqlCommand("update FileVersions set FileVersion=@FileVersion, Last_Update=@Last_Update where Host=@Host and SoftwareName=@SoftwareName", conn)
+            {
+                CommandType = CommandType.Text
+            };
+
+            updateFileVersionCmd.Parameters.AddWithValue("@FileVersion", fileInfo.FileVersion);
+            updateFileVersionCmd.Parameters.AddWithValue("@Last_Update", DateTime.Now);
+            updateFileVersionCmd.Parameters.AddWithValue("@ComputerName", host);
+            updateFileVersionCmd.Parameters.AddWithValue("@SoftwareName", softwareName);
+
+            updateFileVersionCmd.ExecuteNonQuery();
+        }
+
+        private static void LogException(Exception ex)
+        {
+            string filePath = ConfigurationManager.AppSettings["ErrorLogPath"];
+            using (StreamWriter writer = new StreamWriter(File.Open(filePath, FileMode.Append)))
+            {
+                writer.WriteLine("-----------------------------------------------------------------------------");
+                writer.WriteLine("Date : " + DateTime.Now.ToString());
+                writer.WriteLine();
+
+                while (ex != null)
+                {
+                    writer.WriteLine(ex.GetType().FullName);
+                    writer.WriteLine("Message : " + ex.Message);
+                    ex = ex.InnerException;
+                }
+            }
+        }
+
     }
     
 }
