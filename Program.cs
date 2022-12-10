@@ -162,7 +162,7 @@ namespace GetVersions
            
 
             // insert new record in table
-            var insertCmd = new SqlCommand("[sp_FLCAD_FILE_VERSION_UpdateFileVersion]", conn)
+            var insertCmd = new SqlCommand("[sp_FLCAD_FILE_VERSION_InsertFileVersion]", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
