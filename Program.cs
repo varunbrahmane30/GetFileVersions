@@ -190,9 +190,10 @@ namespace GetVersions
 
             updateFileVersionCmd.Parameters.AddWithValue("@FileVersion", fileInfo.FileVersion);
             updateFileVersionCmd.Parameters.AddWithValue("@Last_Update", DateTime.Now);
-            updateFileVersionCmd.Parameters.AddWithValue("@ComputerName", host);
+            updateFileVersionCmd.Parameters.AddWithValue("@Host", host);
             updateFileVersionCmd.Parameters.AddWithValue("@Path", path);
             updateFileVersionCmd.Parameters.AddWithValue("@SoftwareName", softwareName);
+            
 
             updateFileVersionCmd.ExecuteNonQuery();
         }
