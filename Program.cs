@@ -162,9 +162,9 @@ namespace GetVersions
            
 
             // insert new record in table
-            var insertCmd = new SqlCommand("insert into FileVersions(Host, SoftwareName,Path,Last_Update,Database_Name) values(@Host, @SoftwareName, @Path,@Last_Update,@Database_Name)", conn)
+            var insertCmd = new SqlCommand("[sp_FLCAD_FILE_VERSION_UpdateFileVersion]", conn)
             {
-                CommandType = CommandType.Text
+                CommandType = CommandType.StoredProcedure
             };
 
             insertCmd.Parameters.AddWithValue("@Host", host);
