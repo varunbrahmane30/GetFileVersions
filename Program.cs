@@ -89,9 +89,9 @@ namespace GetVersions
                     foreach (var softwareName in softwareNames)
                     {
                         // Get existing record from table
-                        var cmd = new SqlCommand("select * from FileVersions where Host=@Host and SoftwareName=@SoftwareName", conn)
+                        var cmd = new SqlCommand("sp_FLCAD_FILE_VERSION_CompareFileVersion", conn)
                         {
-                            CommandType = CommandType.Text
+                            CommandType = CommandType.StoredProcedure
                         };
                         cmd.Parameters.AddWithValue("@Host", host);
                         cmd.Parameters.AddWithValue("@SoftwareName", softwareName);
