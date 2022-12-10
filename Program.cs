@@ -54,6 +54,7 @@ namespace GetVersions
                 try
                 {
                     conn.Open();
+
                     // Get the software name based on FLCSystemMember table.
                     var cmd = new SqlCommand("sp_FLCAD_FILE_VERSION_GetFileVersion", conn)
                     {
