@@ -142,37 +142,19 @@ namespace GetVersions
                 {
 
                     currentserviceExePath = ConfigurationManager.AppSettings[softwareName.ToLower()];
-                    //using (var wmiService = new ManagementObject("Win32_Service.Name='" + service.ServiceName + "'"))
-                    //{
-                    //    wmiService.Get();
-
-                    //    currentserviceExePath = wmiService["PathName"].ToString();
-
-                    //    if (currentserviceExePath.Contains(" "))
-                    //        if(currentserviceExePath.Contains("AlwaysUp"))
-                    //        {
-                    //            var startfrom =@"D:\";
-                    //            int index= currentserviceExePath.IndexOf(startfrom);
-                    //            currentserviceExePath = currentserviceExePath.Substring(index, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
-                    //            if (currentserviceExePath.Contains(" "))
-                    //            {
-
-                    //            }
-                    //        }
-                    //        else
-                    //        {
-                    //            currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
-                    //        }
-
-                    //}
+                    if (string.IsNullOrWhiteSpace(currentserviceExePath))
+                    {
+                        Console.WriteLine(softwareName + " Path not found.");
+                    }
                     break;
                 }
             }
 
-            //"C:\Program Files (x86)\AlwaysUp\AlwaysUpService.exe"  "FLCAD MailSave (managed by AlwaysUpService)" "D:\Staging\MailSave\MailSave_Server.exe conf=FLCAD_vb6_local.ini" - k - m - ms - o "Sathish.M@kone.com" - h "SVC_FLCAD_INDIA@kone.com" - 3 "AlwaysUp" - g "mail" - 7 2 - r - w "D:\Staging\MailSave" - z 512 - rn - nt - f 3 0 - fd 5 1
-            var existsOnMachine = !string.IsNullOrWhiteSpace(currentserviceExePath);
+           var existsOnMachine = !string.IsNullOrWhiteSpace(currentserviceExePath);
             if (existsOnMachine)
             {
+                Console.WriteLine("path = " + currentserviceExePath);
+
                 var fileInfo = FileVersionInfo.GetVersionInfo(Path.Combine(currentserviceExePath));
                 // insert new record in table
                 var insertCmd = new SqlCommand("[sp_FLCAD_FILE_VERSION_InsertFileVersion]", conn)
@@ -198,6 +180,11 @@ namespace GetVersions
 
         private static void UpdateFileVersion(string host, SqlConnection conn, string softwareName, string path)
         {
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                Console.WriteLine(softwareName + " Path not found.");
+            }
 
             // update existing record with new file version
             var fileInfo = FileVersionInfo.GetVersionInfo(Path.Combine(path));
