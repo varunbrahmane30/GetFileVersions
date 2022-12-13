@@ -13,28 +13,19 @@ using System.ServiceProcess;
 namespace GetVersions
 {
     internal class Program
-    {  
-        public static string GetConnectionStringByName(string dbName)
-        {
-            string returnValue = null;
-            ConnectionStringSettings settings = ConfigurationManager.ConnectionStrings[dbName];
-
-            if (settings != null)
-                returnValue = settings.ConnectionString;
-
-            return returnValue;
-        }
-
+    {
         static string ConnectionString { get; set; }
-
         static void Main(string[] args)
         {
-            int loop = 0;
-            ConnectionString = GetConnectionStringByName("FLCADDB");
-            while ( loop <= 1)
+            try
             {
+                ConnectionString = GetConnectionStringByName("FLCADDB");
                 Run();
-                loop++;
+            }
+            finally
+            {
+                Console.WriteLine("stopped ...");
+                Console.ReadKey(true);
             }
             Console.ReadKey(true);
         }
@@ -104,8 +95,9 @@ namespace GetVersions
                         while (reader.Read())
                         {
                             path = reader["Path"].ToString();
+                           
                             fileVersion = reader["FileVersion"].ToString();
-                             swname= reader["SoftwareName"].ToString();
+                            swname= reader["SoftwareName"].ToString();
 
                         }
 
@@ -128,53 +120,64 @@ namespace GetVersions
                 }
             }
         }
+        public static string GetConnectionStringByName(string dbName)
+        {
+            string returnValue = null;
+            ConnectionStringSettings settings = ConfigurationManager.ConnectionStrings[dbName];
+
+            if (settings != null)
+                returnValue = settings.ConnectionString;
+
+            return returnValue;
+        }
 
         private static void InsertFileVersion(string host, SqlConnection conn, string softwareName)
         {
+            var currentserviceExePath = string.Empty;
+            var services = ServiceController.GetServices();
 
-            //var result = softwareName.Contains("");
 
-            string ServiceName = softwareName;
-            string currentserviceExePath = string.Empty;
-
-            //Get the Database name from Connection String
-            SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(ConnectionString);
-            String databaseName = builder.InitialCatalog;
-
-            ServiceController[] services = ServiceController.GetServices();
-
-            foreach(var service in services)
+            foreach (var service in services)
             {
-                if (service.ServiceName.Contains(ServiceName))
+                if (service.ServiceName.ToLower().Contains(softwareName.ToLower()))
                 {
-                    using (ManagementObject wmiService = new ManagementObject("Win32_Service.Name='" + service.ServiceName + "'"))
+                    using (var wmiService = new ManagementObject("Win32_Service.Name='" + service.ServiceName + "'"))
                     {
                         wmiService.Get();
 
                         currentserviceExePath = wmiService["PathName"].ToString();
+                       
                         if (currentserviceExePath.Contains(" "))
-                            currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(" "));
+                            currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(".exe")+".exe".Length);
                     }
                     break;
                 }
             }
-            // Get the Path of Windows service.
-           
 
-            // insert new record in table
-            var insertCmd = new SqlCommand("[sp_FLCAD_FILE_VERSION_InsertFileVersion]", conn)
+            //"C:\Program Files (x86)\AlwaysUp\AlwaysUpService.exe"  "FLCAD MailSave (managed by AlwaysUpService)" "D:\Staging\MailSave\MailSave_Server.exe conf=FLCAD_vb6_local.ini" - k - m - ms - o "Sathish.M@kone.com" - h "SVC_FLCAD_INDIA@kone.com" - 3 "AlwaysUp" - g "mail" - 7 2 - r - w "D:\Staging\MailSave" - z 512 - rn - nt - f 3 0 - fd 5 1
+            var existsOnMachine = !string.IsNullOrWhiteSpace(currentserviceExePath);
+            if (existsOnMachine)
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                var fileInfo = FileVersionInfo.GetVersionInfo(Path.Combine(currentserviceExePath));
+                // insert new record in table
+                var insertCmd = new SqlCommand("[sp_FLCAD_FILE_VERSION_InsertFileVersion]", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            insertCmd.Parameters.AddWithValue("@Host", host);
-            insertCmd.Parameters.AddWithValue("@SoftwareName", softwareName);
-            insertCmd.Parameters.AddWithValue("@Path", currentserviceExePath);
-            insertCmd.Parameters.AddWithValue("@Last_Update", DateTime.Now);
-            insertCmd.Parameters.AddWithValue("@Database_Name", databaseName);
+                //Get the Database name from Connection String
+                var builder = new SqlConnectionStringBuilder(ConnectionString);
+                var databaseName = builder.InitialCatalog;
 
+                insertCmd.Parameters.AddWithValue("@Host", host);
+                insertCmd.Parameters.AddWithValue("@SoftwareName", softwareName);
+                insertCmd.Parameters.AddWithValue("@FileVersion", fileInfo.FileVersion);
+                insertCmd.Parameters.AddWithValue("@Path", currentserviceExePath);
+                insertCmd.Parameters.AddWithValue("@Last_Update", DateTime.Now);
+                insertCmd.Parameters.AddWithValue("@Database_Name", databaseName);
 
-            insertCmd.ExecuteNonQuery();
+                insertCmd.ExecuteNonQuery();
+            }
             
         }
 
@@ -194,18 +197,24 @@ namespace GetVersions
             updateFileVersionCmd.Parameters.AddWithValue("@Path", path);
             updateFileVersionCmd.Parameters.AddWithValue("@SoftwareName", softwareName);
             
-
             updateFileVersionCmd.ExecuteNonQuery();
         }
 
         private static void LogException(Exception ex)
         {
             string filePath = ConfigurationManager.AppSettings["ErrorLogPath"];
+
+            if(File.Exists(filePath)==false)
+            {
+                FileStream read = System.IO.File.Create(filePath);
+
+                read.Close();
+            }
+
             using (StreamWriter writer = new StreamWriter(File.Open(filePath, FileMode.Append)))
             {
                 writer.WriteLine("-----------------------------------------------------------------------------");
-                writer.WriteLine("Date : " + DateTime.Now.ToString());
-                writer.WriteLine();
+                writer.WriteLine("Date : " + DateTime.Now.ToString() + "\n");
 
                 while (ex != null)
                 {
