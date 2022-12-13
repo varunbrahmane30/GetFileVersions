@@ -140,29 +140,31 @@ namespace GetVersions
             {
                 if (service.ServiceName.ToLower().Contains(softwareName.ToLower()))
                 {
-                    using (var wmiService = new ManagementObject("Win32_Service.Name='" + service.ServiceName + "'"))
-                    {
-                        wmiService.Get();
 
-                        currentserviceExePath = wmiService["PathName"].ToString();
-                       
-                        if (currentserviceExePath.Contains(" "))
-                            if(currentserviceExePath.Contains("AlwaysUp"))
-                            {
-                                var startfrom =@"D:\";
-                                int index= currentserviceExePath.IndexOf(startfrom);
-                                currentserviceExePath = currentserviceExePath.Substring(index, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
-                                if (currentserviceExePath.Contains(" "))
-                                {
+                    currentserviceExePath = ConfigurationManager.AppSettings[softwareName.ToLower()];
+                    //using (var wmiService = new ManagementObject("Win32_Service.Name='" + service.ServiceName + "'"))
+                    //{
+                    //    wmiService.Get();
 
-                                }
-                            }
-                            else
-                            {
-                                currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
-                            }
-                            
-                    }
+                    //    currentserviceExePath = wmiService["PathName"].ToString();
+
+                    //    if (currentserviceExePath.Contains(" "))
+                    //        if(currentserviceExePath.Contains("AlwaysUp"))
+                    //        {
+                    //            var startfrom =@"D:\";
+                    //            int index= currentserviceExePath.IndexOf(startfrom);
+                    //            currentserviceExePath = currentserviceExePath.Substring(index, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
+                    //            if (currentserviceExePath.Contains(" "))
+                    //            {
+
+                    //            }
+                    //        }
+                    //        else
+                    //        {
+                    //            currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
+                    //        }
+
+                    //}
                     break;
                 }
             }
