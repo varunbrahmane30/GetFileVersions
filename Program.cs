@@ -95,7 +95,6 @@ namespace GetVersions
                         while (reader.Read())
                         {
                             path = reader["Path"].ToString();
-                           
                             fileVersion = reader["FileVersion"].ToString();
                             swname= reader["SoftwareName"].ToString();
 
@@ -148,7 +147,21 @@ namespace GetVersions
                         currentserviceExePath = wmiService["PathName"].ToString();
                        
                         if (currentserviceExePath.Contains(" "))
-                            currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(".exe")+".exe".Length);
+                            if(currentserviceExePath.Contains("AlwaysUp"))
+                            {
+                                var startfrom =@"D:\";
+                                int index= currentserviceExePath.IndexOf(startfrom);
+                                currentserviceExePath = currentserviceExePath.Substring(index, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
+                                if (currentserviceExePath.Contains(" "))
+                                {
+
+                                }
+                            }
+                            else
+                            {
+                                currentserviceExePath = currentserviceExePath.Substring(0, currentserviceExePath.IndexOf(".exe") + ".exe".Length);
+                            }
+                            
                     }
                     break;
                 }
